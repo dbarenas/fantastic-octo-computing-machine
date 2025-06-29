@@ -1,6 +1,7 @@
 import pytest
-from extractors.certificado_final import CertificadoFinalExtractor
-from validators.certificado_final_validator import CertificadoFinalValidator
+from unittest.mock import patch
+from document_processor.extractors.certificado_final import CertificadoFinalExtractor
+from document_processor.validators.certificado_final_validator import CertificadoFinalValidator
 
 example_text = """
     Certificado Final de Obra
@@ -9,12 +10,15 @@ example_text = """
     Sin observaciones.
 """
 
-def test_extractor():
-    extractor = CertificadoFinalExtractor(example_text)
+@patch('document_processor.base.base_extractor.extract_text_from_document')
+def test_extractor(mock_extract_text):
+    mock_extract_text.return_value = example_text
+    extractor = CertificadoFinalExtractor(bucket_name="test-bucket", document_key="test-key.pdf")
     result = extractor.extract()
     assert result["firmas"] is True
     assert result["fecha"] == "15/05/2025"
     assert result["observaciones"] is True
+    mock_extract_text.assert_called_once_with("test-bucket", "test-key.pdf", "us-east-1")
 
 def test_validator_valid_data():
     data = {

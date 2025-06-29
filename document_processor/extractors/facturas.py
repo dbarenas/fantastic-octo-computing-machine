@@ -1,7 +1,10 @@
-from base.base_extractor import BaseExtractor
+from document_processor.base.base_extractor import BaseExtractor
 import re
 
 class FacturaExtractor(BaseExtractor):
+    def __init__(self, bucket_name: str, document_key: str):
+        super().__init__(bucket_name, document_key)
+
     def extract(self) -> dict:
         """
         Extracts information specific to invoices (facturas).
@@ -73,13 +76,30 @@ if __name__ == '__main__':
     IVA (21%): 42.00
     Total Factura: 242.00 EUR
     """
-    extractor = FacturaExtractor(sample_invoice_text)
-    data = extractor.extract()
-    print("Extracted Invoice Data (Placeholder):")
-    for key, value in data.items():
-        print(f"- {key}: {value}")
+    # The __main__ block needs to be updated or removed as it relies on old constructor
+    # For now, let's comment it out or adapt it if we have sample S3 documents.
+    # extractor = FacturaExtractor("some-bucket", "some-key/sample_invoice_text.pdf")
+    # data = extractor.extract()
+    # print("Extracted Invoice Data (Placeholder):")
+    pass # Placeholder for now
+    # for key, value in data.items():
+    #     print(f"- {key}: {value}")
 
-    sample_invoice_text_2 = """
+    # sample_invoice_text_2 = """
+    # Invoice # INV-789
+    # Date: 01/01/2024
+    # Amount Due $ 150.55
+    # """
+    # extractor_2 = FacturaExtractor("some-bucket", "some-key/sample_invoice_text_2.pdf")
+    # data_2 = extractor_2.extract()
+    # print("\nExtracted Invoice Data 2 (Placeholder):")
+    # for key, value in data_2.items():
+    #     print(f"- {key}: {value}")
+    print("FacturaExtractor __main__ block needs update for S3 functionality.")
+    # for key, value in data.items(): # data is commented out
+    #     print(f"- {key}: {value}")
+
+    # sample_invoice_text_2 = """
     Invoice # INV-789
     Date: 01/01/2024
     Amount Due $ 150.55
