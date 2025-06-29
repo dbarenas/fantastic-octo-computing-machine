@@ -1,7 +1,10 @@
-from base.base_extractor import BaseExtractor
+from document_processor.base.base_extractor import BaseExtractor
 import re
 
 class CertificadoFinalExtractor(BaseExtractor):
+    def __init__(self, bucket_name: str, document_key: str):
+        super().__init__(bucket_name, document_key)
+
     def extract(self) -> dict:
         return {
             "firmas": self._extraer_firmas(),

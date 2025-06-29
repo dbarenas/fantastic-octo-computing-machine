@@ -1,7 +1,10 @@
-from base.base_extractor import BaseExtractor
+from document_processor.base.base_extractor import BaseExtractor
 import re
 
 class MemoriaActuacionExtractor(BaseExtractor):
+    def __init__(self, bucket_name: str, document_key: str):
+        super().__init__(bucket_name, document_key)
+
     def extract(self) -> dict:
         """
         Extracts information specific to "Memoria de Actuación" documents.
@@ -64,22 +67,25 @@ if __name__ == '__main__':
     1. Introducción
     ...
     """
-    extractor = MemoriaActuacionExtractor(sample_memoria_text)
-    data = extractor.extract()
-    print("Extracted Memoria de Actuación Data (Placeholder):")
-    for key, value in data.items():
-        print(f"- {key}: {value}")
+    # The __main__ block needs to be updated or removed as it relies on old constructor
+    # For now, let's comment it out or adapt it if we have sample S3 documents.
+    # extractor = MemoriaActuacionExtractor("some-bucket", "some-key/sample_memoria_text.pdf")
+    # data = extractor.extract()
+    # print("Extracted Memoria de Actuación Data (Placeholder):")
+    # for key, value in data.items():
+    #     print(f"- {key}: {value}")
 
-    sample_memoria_text_2 = """
-    Proyecto: Mejora Eficiencia Energética
-    Fecha: 01/02/2023
+    # sample_memoria_text_2 = """
+    # Proyecto: Mejora Eficiencia Energética
+    # Fecha: 01/02/2023
 
-    Resumen
-    Este proyecto busca reducir el consumo energético en un 20%.
-    Se implementarán nuevas tecnologías y se optimizarán procesos.
-    """
-    extractor_2 = MemoriaActuacionExtractor(sample_memoria_text_2)
-    data_2 = extractor_2.extract()
-    print("\nExtracted Memoria de Actuación Data 2 (Placeholder):")
-    for key, value in data_2.items():
-        print(f"- {key}: {value}")
+    # Resumen
+    # Este proyecto busca reducir el consumo energético en un 20%.
+    # Se implementarán nuevas tecnologías y se optimizarán procesos.
+    # """
+    # extractor_2 = MemoriaActuacionExtractor("some-bucket", "some-key/sample_memoria_text_2.pdf")
+    # data_2 = extractor_2.extract()
+    # print("\nExtracted Memoria de Actuación Data 2 (Placeholder):")
+    # for key, value in data_2.items():
+    #     print(f"- {key}: {value}")
+    print("MemoriaActuacionExtractor __main__ block needs update for S3 functionality.")
