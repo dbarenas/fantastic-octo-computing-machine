@@ -13,7 +13,8 @@ from src.document_processing.core import (
 from src.document_processing.impl import (
     PDFDocument,
     ImageDocument,
-    TesseractOCRExtractor,
+    TesseractOCRExtractor, # Keep for potential comparison or alternative setup
+    TextractOCRExtractor,  # Import the new Textract extractor
     InvoiceClassifier,
     GeneralDocumentClassifier,
     InvoiceFieldRetriever,
@@ -66,7 +67,25 @@ def run_demo_process():
     # 2. Instantiate components
     print("\n--- Initializing Components ---")
     # OCR Extractor
-    ocr_extractor = TesseractOCRExtractor()
+    # Option 1: Use Tesseract (offline, good for basic demo)
+    # ocr_extractor = TesseractOCRExtractor()
+    # print("Using TesseractOCRExtractor (simulated offline OCR)")
+
+    # Option 2: Use AWS Textract (requires AWS credentials and network access)
+    # IMPORTANT: Using TextractOCRExtractor will make actual calls to AWS Textract,
+    # which may incur costs and requires AWS credentials to be configured.
+    # Ensure your AWS environment is set up (e.g., via AWS CLI `aws configure`).
+    try:
+        # You might want to specify a region if not using the default
+        # ocr_extractor = TextractOCRExtractor(region_name="your-aws-region")
+        ocr_extractor = TextractOCRExtractor()
+        print("Using TextractOCRExtractor (requires AWS credentials and may incur costs)")
+    except Exception as e:
+        print(f"Failed to initialize TextractOCRExtractor: {e}")
+        print("Falling back to TesseractOCRExtractor for demo purposes.")
+        ocr_extractor = TesseractOCRExtractor()
+        print("Using TesseractOCRExtractor (simulated offline OCR)")
+
 
     # Classifiers
     # We can have a primary classifier and chain them or use a more sophisticated one.

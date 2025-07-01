@@ -35,7 +35,8 @@ This project provides a flexible and extensible framework for processing various
     -   `Process`: Abstract base class for a document processing workflow.
 -   **`src/document_processing/impl/`**: Contains concrete implementations of the interfaces defined in `core`.
     -   `documents.py`: Examples like `PDFDocument`, `ImageDocument`.
-    -   `extractors.py`: Examples like `TesseractOCRExtractor`.
+    - `extractors.py`: Example `TesseractOCRExtractor` (simulated).
+    - `aws_extractors.py`: Example `TextractOCRExtractor` for AWS Textract service.
     -   `classifiers.py`: Examples like `InvoiceClassifier`, `GeneralDocumentClassifier`.
     -   `retrievers.py`: Examples like `InvoiceFieldRetriever`, `GeneralFieldRetriever`.
     -   `validators.py`: Examples like `DataLengthValidator`, `RegexValidator`.
@@ -100,6 +101,7 @@ The framework is designed for extensibility. Here’s how you can add custom com
             document.raw_text = text # Important: Update the document's raw_text
             return text
     ```
+    - **Note for Cloud Services (like AWS Textract)**: If your extractor uses cloud services, it will likely depend on an SDK (e.g., `boto3` for AWS). Ensure this dependency is documented (e.g., in `requirements.txt`). The extractor should be designed to pick up credentials from the environment (standard practice for SDKs) or allow them to be passed in securely (avoid hardcoding). See `TextractOCRExtractor` for an example.
 
 ### 3. Adding a New Document Classifier
 
@@ -185,8 +187,15 @@ The `main.py` script provides a demonstration of how to use the framework:
 
 To run the demo:
 ```bash
+# Ensure dependencies are installed (especially if you want to try Textract)
+# pip install -r requirements.txt
+
 python main.py
 ```
+
+The demo script `main.py` attempts to use `TextractOCRExtractor` by default.
+- **Using AWS Textract**: If you have AWS credentials configured in your environment (e.g., via `aws configure`) and `boto3` installed, the demo will attempt to use AWS Textract. This will make live API calls and may incur costs.
+- **Fallback to Simulated OCR**: If `TextractOCRExtractor` fails to initialize (e.g., due to missing credentials), the script will automatically fall back to `TesseractOCRExtractor`, which uses simulated OCR data and runs offline.
 
 This will showcase the flow of operations and how different components interact. You can modify `main.py` to experiment with different configurations or new components you create.
 
