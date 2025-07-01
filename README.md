@@ -1,238 +1,203 @@
-# fantastic-octo-computing-machine
+# Document Processing Framework
 
-## 1. Project Overview
+This project provides a flexible and extensible framework for processing various types of documents. It follows a pipeline approach: document loading, OCR text extraction, document type classification, field retrieval, and data validation. The framework is designed with abstraction in mind, allowing developers to easily add new document types, processing components, and define complex workflows.
 
-`fantastic-octo-computing-machine` is a document processing system designed to automatically extract information from various types of documents, validate this information, and store it for further use. It leverages AWS Textract for Optical Character Recognition (OCR) and a modular architecture to support different document formats and custom processing logic.
-
-## 2. Core Components
-
-The system is organized into several key modules:
-
-*   **`aws_lib/`**: Contains utility functions for interacting with AWS services.
-    *   `s3.py`: Functions for S3 bucket operations (though not directly used by `BaseExtractor` for text loading, which uses `boto3` via `aws_lib.textract`).
-    *   `textract.py`: Handles text extraction from documents stored in S3 using AWS Textract.
-*   **`document_processor/`**: The main application logic resides here.
-    *   **`base/`**:
-        *   `base_extractor.py`: Defines the `BaseExtractor` abstract class, which all specific document extractors must inherit from.
-        *   `base_validator.py`: Defines the `BaseValidator` abstract class, which all specific document validators must inherit from.
-    *   **`classifier.py`**: (Assumed functionality) Responsible for determining the type of a document based on its content.
-    *   **`config.py`**: Stores system-wide configurations, such as logging settings, AWS region, and potentially paths or parameters for different document types.
-    *   **`db/`**: Manages database interactions.
-        *   `database.py`: (Assumed) Contains database connection setup.
-        *   `insert.py`: (Assumed) Contains functions to insert processed data into the database.
-        *   `models/`: Defines the database schema using SQLAlchemy or a similar ORM.
-        *   `query.py`: (Assumed) Contains functions to query data from the database.
-    *   **`extractors/`**: Contains specific extractor implementations for different document types (e.g., `certificado_final.py`, `facturas.py`).
-    *   **`validators/`**: Contains specific validator implementations for different document types (e.g., `certificado_final_validator.py`, `facturas_validator.py`).
-    *   **`processor_factory.py`**: A crucial component that maps document types to their respective extractor and validator classes. It provides a `get_processor` function to retrieve the correct processing tools.
-    *   **`pipeline.py`**: Orchestrates the entire document processing flow from text extraction to validation and storage.
-    *   **`main.py`**: (Assumed) The main entry point for running the document processing system.
-    *   **`api.py`**: (Assumed) If present, this would define an API for interacting with the document processing system (e.g., uploading documents, retrieving processed data).
-    *   **`utils/`**: Contains various utility functions for tasks like date manipulation, file operations, text processing, etc.
-*   **`tests/`**: Contains integration or system-level tests.
-*   **`document_processor/tests/`**: Contains unit tests for the components within the `document_processor` module.
-
-## 3. Document Processing Workflow
-
-The typical workflow for processing a document is as follows:
-
-1.  **Document Upload**: A document is uploaded (e.g., to an S3 bucket).
-2.  **Text Extraction (OCR)**: The `DocumentProcessingPipeline` (often via `aws_lib.textract`) extracts raw text from the document.
-3.  **Classification**: The extracted text is analyzed by the `DocumentClassifier` to determine its type (e.g., "factura", "certificado_final").
-4.  **Processor Selection**: The `processor_factory.get_processor` function is called with the document type and the extracted text. It returns a `DocumentProcessor` instance containing the appropriate extractor and validator.
-5.  **Data Extraction**: The selected extractor's `extract()` method is called to pull specific fields from the raw text.
-6.  **Data Validation**: The selected validator's `validate()` method is called with the extracted data to check its correctness and consistency against predefined rules.
-7.  **Storage**: The original document metadata, raw text (or its path), extracted data, and validation results are stored in a database (e.g., using functions from `db.insert`).
-8.  **Output**: The pipeline returns a structured representation of the processed document.
-
-## 4. Configuration
-
-The `document_processor/config.py` file is intended to hold general system parameters. This might include:
-
-*   AWS settings (e.g., region, S3 bucket names).
-*   Database connection strings.
-*   Logging levels and formats.
-*   Constants or thresholds used in extraction or validation logic.
-
-Ensure this file is correctly configured for your environment.
-
-## 5. Integrating a New Extractor
-
-To process a new type of document, you'll need to create a custom extractor.
-
-### 5.1. Create the Extractor Class
-
-Create a new Python file in the `document_processor/extractors/` directory (e.g., `my_new_document_extractor.py`). In this file, define a class that inherits from `BaseExtractor`:
-
-```python
-# document_processor/extractors/my_new_document_extractor.py
-from document_processor.base.base_extractor import BaseExtractor
-# Import any other necessary utilities (e.g., regex, date parsing)
-import re
-
-class MyNewDocumentExtractor(BaseExtractor):
-    def __init__(self, bucket_name: str, document_key: str):
-        super().__init__(bucket_name, document_key)
-        # self.text is now loaded by the parent class's _load_text_from_s3 method
-
-    def extract(self) -> dict:
-        """
-        Extracts specific information from the document text.
-        """
-        extracted_data = {
-            "document_type": "MyNewDocumentType", # Important for classification/routing
-            "title": None,
-            "date": None,
-            "amount": None,
-            # Add other fields relevant to your new document type
-        }
-
-        # Example: Extract a title using a simple regex
-        title_match = re.search(r"Title:\s*(.*)", self.text, re.IGNORECASE)
-        if title_match:
-            extracted_data["title"] = title_match.group(1).strip()
-
-        # Example: Extract a date (you might use more robust date parsing)
-        date_match = re.search(r"Date:\s*(\d{2}/\d{2}/\d{4})", self.text)
-        if date_match:
-            extracted_data["date"] = date_match.group(1).strip()
-
-        # ... implement more extraction logic for other fields ...
-
-        return extracted_data
+## Project Structure
 
 ```
-
-**Key points for `BaseExtractor` usage:**
-
-*   The `__init__` method of your new extractor should call `super().__init__(bucket_name, document_key)`.
-*   The `BaseExtractor`'s `__init__` method automatically calls `_load_text_from_s3()`, which uses `aws_lib.textract.extract_text_from_document` to fetch and store the document's text content in `self.text`.
-*   The `extract()` method must be implemented. It should return a dictionary containing the extracted key-value pairs.
-
-### 5.2. Implement Extraction Logic
-
-Inside the `extract()` method, use string manipulation, regular expressions, or other parsing techniques to find and retrieve the required information from `self.text`.
-
-## 6. Integrating a New Validator
-
-After extracting data, it's often necessary to validate it.
-
-### 6.1. Create the Validator Class
-
-Create a new Python file in the `document_processor/validators/` directory (e.g., `my_new_document_validator.py`). Define a class that inherits from `BaseValidator`:
-
-```python
-# document_processor/validators/my_new_document_validator.py
-from document_processor.base.base_validator import BaseValidator
-# Import any necessary validation utilities (e.g., date checking)
-from datetime import datetime
-
-class MyNewDocumentValidator(BaseValidator):
-    def __init__(self, data: dict):
-        super().__init__(data)
-        # self.data now holds the dictionary from the extractor
-
-    def validate(self) -> dict:
-        """
-        Validates the extracted data.
-        Returns a dictionary with validation status and details.
-        """
-        validation_results = {
-            "is_valid": True, # Overall validity
-            "details": {},    # Field-specific validation messages
-            "errors": []      # List of error messages
-        }
-
-        # Example: Validate the 'title' field
-        title = self.data.get("title")
-        if not title or len(title) < 5:
-            validation_results["is_valid"] = False
-            validation_results["details"]["title"] = "Title is missing or too short."
-            validation_results["errors"].append("Invalid title.")
-
-        # Example: Validate the 'date' field
-        date_str = self.data.get("date")
-        if date_str:
-            try:
-                datetime.strptime(date_str, "%d/%m/%Y")
-                validation_results["details"]["date"] = "Date format is valid."
-            except ValueError:
-                validation_results["is_valid"] = False
-                validation_results["details"]["date"] = "Date format is invalid. Expected DD/MM/YYYY."
-                validation_results["errors"].append("Invalid date format.")
-        else:
-            validation_results["is_valid"] = False
-            validation_results["details"]["date"] = "Date is missing."
-            validation_results["errors"].append("Missing date.")
-
-        # ... implement more validation logic ...
-
-        # If any error occurred, set overall validity to False
-        if validation_results["errors"]:
-            validation_results["is_valid"] = False
-
-        return validation_results
+.
+├── src/
+│   └── document_processing/
+│       ├── __init__.py
+│       ├── core/               # Abstract base classes and interfaces
+│       │   ├── __init__.py
+│       │   └── base.py
+│       ├── impl/               # Concrete implementations
+│       │   ├── __init__.py
+│       │   ├── classifiers.py
+│       │   ├── documents.py
+│       │   ├── extractors.py
+│       │   ├── processes.py
+│       │   ├── retrievers.py
+│       │   └── validators.py
+│       └── utils/              # Utility functions (currently empty)
+│           └── __init__.py
+├── main.py                     # Example script demonstrating framework usage
+└── README.md                   # This file
 ```
 
-**Key points for `BaseValidator` usage:**
+-   **`src/document_processing/core/base.py`**: Defines the abstract base classes (interfaces) for all major components:
+    -   `Document`: Represents a generic document.
+    -   `OCRExtractor`: Interface for OCR engines.
+    -   `DocumentClassifier`: Interface for classifying document types.
+    -   `FieldRetriever`: Interface for retrieving specific fields from a document.
+    -   `Validator`: Interface for validating extracted data.
+    -   `Process`: Abstract base class for a document processing workflow.
+-   **`src/document_processing/impl/`**: Contains concrete implementations of the interfaces defined in `core`.
+    -   `documents.py`: Examples like `PDFDocument`, `ImageDocument`.
+    -   `extractors.py`: Examples like `TesseractOCRExtractor`.
+    -   `classifiers.py`: Examples like `InvoiceClassifier`, `GeneralDocumentClassifier`.
+    -   `retrievers.py`: Examples like `InvoiceFieldRetriever`, `GeneralFieldRetriever`.
+    -   `validators.py`: Examples like `DataLengthValidator`, `RegexValidator`.
+    -   `processes.py`: Example `FinancialProcess` orchestrating the steps.
+-   **`src/document_processing/utils/`**: Intended for helper functions or shared utilities.
+-   **`main.py`**: A script that demonstrates how to:
+    -   Instantiate and configure processing components.
+    -   Set up a `Process` (e.g., `FinancialProcess`).
+    -   Add documents to the process.
+    -   Run the process.
+    -   Retrieve a summary of the processing results.
 
-*   The `__init__` method of your new validator should call `super().__init__(data)`, where `data` is the dictionary returned by your corresponding extractor.
-*   The `validate()` method must be implemented. It should return a dictionary typically containing:
-    *   `is_valid` (bool): Overall validity status.
-    *   `details` (dict, optional): Field-specific validation messages or statuses.
-    *   `errors` (list, optional): A list of specific error messages if validation fails.
+## Core Concepts
 
-## 7. Registering New Components
+1.  **Document**: An abstraction of a file to be processed. Each document instance handles its own content loading.
+2.  **OCRExtractor**: Responsible for extracting raw text from a document.
+3.  **DocumentClassifier**: Determines the type of a document (e.g., "invoice", "report", "id_card") based on its content.
+4.  **FieldRetriever**: Extracts specific data fields (e.g., invoice number, total amount) from a document, typically based on its classified type.
+5.  **Validator**: Checks if the extracted data fields meet certain criteria (e.g., length, format, allowed values).
+6.  **Process**: Orchestrates the entire workflow. It takes a list of documents and applies the configured extractors, classifiers, retrievers, and validators to each.
 
-After creating your new extractor and validator, you must register them in the `PROCESSOR_MAPPING` dictionary within `document_processor/processor_factory.py`.
+## How to Extend the Framework
 
-1.  **Import your new classes** at the top of `document_processor/processor_factory.py`:
+The framework is designed for extensibility. Here’s how you can add custom components:
 
+### 1. Adding a New Document Type
+
+-   Create a new class that inherits from `Document` (in `src.document_processing.core.base`).
+-   Implement the `load_content(self)` method to handle the specifics of loading this document type (e.g., parsing a specific XML format, connecting to a database).
+-   **Example**:
     ```python
-    # ... other imports ...
-    from document_processor.extractors.my_new_document_extractor import MyNewDocumentExtractor
-    from document_processor.validators.my_new_document_validator import MyNewDocumentValidator
-    # ...
+    # In src/document_processing/impl/documents.py (or a new file)
+    from src.document_processing.core import Document
+    from typing import Any # Added for example
+
+    class MyCustomDocument(Document):
+        def __init__(self, document_path: str, document_id: str, custom_param: Any):
+            super().__init__(document_path, document_id)
+            self.custom_param = custom_param
+            # Add other specific attributes
+
+        def load_content(self) -> None:
+            print(f"MyCustomDocument [{self.document_id}]: Loading content using custom logic...")
+            # Your logic to load content into self.raw_text or other attributes
+            self.raw_text = f"Content from {self.document_path} with {self.custom_param}"
+    ```
+-   Update the `DOCUMENT_TYPE_MAPPING` in your concrete `Process` implementation (e.g., `FinancialProcess`) if you want it to automatically instantiate your new document type based on file extension.
+
+### 2. Adding a New OCR Extractor
+
+-   Create a new class that inherits from `OCRExtractor`.
+-   Implement the `extract_text(self, document: Document) -> str` method to interface with your chosen OCR engine or service.
+-   **Example**:
+    ```python
+    # In src/document_processing/impl/extractors.py
+    from src.document_processing.core import OCRExtractor, Document
+
+    class MyOCREngine(OCRExtractor):
+        def extract_text(self, document: Document) -> str:
+            # Logic to call your OCR engine with document.document_path or content
+            text = f"Text extracted by MyOCREngine from {document.document_id}"
+            document.raw_text = text # Important: Update the document's raw_text
+            return text
     ```
 
-2.  **Add an entry to `PROCESSOR_MAPPING`**:
-    Use a unique key for your new document type (this key will be used by the classifier or other parts of the system to identify the document type).
+### 3. Adding a New Document Classifier
 
+-   Create a new class that inherits from `DocumentClassifier`.
+-   Implement the `classify(self, document: Document) -> str` method. This method should analyze `document.raw_text` and return a string representing the document type.
+-   **Example**:
     ```python
-    PROCESSOR_MAPPING = {
-        "certificado_final": {
-            "extractor": CertificadoFinalExtractor,
-            "validator": CertificadoFinalValidator,
-        },
-        "factura": {
-            "extractor": FacturaExtractor,
-            "validator": FacturaValidator,
-        },
-        # ... other existing mappings ...
-        "my_new_document_type_key": { # This key should match what your classifier identifies
-            "extractor": MyNewDocumentExtractor,
-            "validator": MyNewDocumentValidator,
-        },
-        # ...
-    }
+    # In src/document_processing/impl/classifiers.py
+    from src.document_processing.core import DocumentClassifier, Document
+
+    class MyCustomClassifier(DocumentClassifier):
+        def classify(self, document: Document) -> str:
+            if "confidential report" in document.raw_text.lower():
+                document.document_type = "confidential_report"
+                return "confidential_report"
+            document.document_type = "unknown"
+            return "unknown"
     ```
 
-## 8. Running the System
+### 4. Adding a New Field Retriever
 
-The system is typically initiated through the `DocumentProcessingPipeline`. This could be triggered by:
+-   Create a new class that inherits from `FieldRetriever`.
+-   Implement the `retrieve_fields(self, document: Document) -> Dict[str, Any]` method. This method should parse `document.raw_text` (and potentially use `document.document_type`) to extract relevant data.
+-   **Example**:
+    ```python
+    # In src/document_processing/impl/retrievers.py
+    from src.document_processing.core import FieldRetriever, Document
+    from typing import Dict, Any
 
-*   A main script (`document_processor/main.py`) that monitors an S3 bucket or a queue for new documents.
-*   An API endpoint (defined in `document_processor/api.py`) that accepts document uploads.
+    class ConfidentialReportRetriever(FieldRetriever):
+        def retrieve_fields(self, document: Document) -> Dict[str, Any]:
+            fields = {}
+            if document.document_type == "confidential_report":
+                # Your logic to find fields, e.g., using regex
+                fields["title"] = "Some Title" # Placeholder
+            document.extracted_fields.update(fields) # Ensure fields are stored in the document
+            return fields
+    ```
 
-The pipeline will then use the classifier and the `processor_factory` to process the document with your newly integrated extractor and validator.
+### 5. Adding a New Validator
 
-## 9. Testing
+-   Create a new class that inherits from `Validator`.
+-   Implement the `validate(self, data: Any, rules: Dict[str, Any]) -> List[str]` method. This method checks the given `data` against the provided `rules` and returns a list of error messages (empty if valid).
+-   **Example**:
+    ```python
+    # In src/document_processing/impl/validators.py
+    from src.document_processing.core import Validator
+    from typing import Any, Dict, List
 
-It is crucial to add tests for your new components:
+    class MyCustomValidator(Validator):
+        def validate(self, data: Any, rules: Dict[str, Any]) -> List[str]:
+            errors = []
+            expected_value = rules.get("expected_value")
+            if data != expected_value:
+                errors.append(f"Value '{data}' does not match expected '{expected_value}'.")
+            return errors
+    ```
 
-*   **Extractor Tests**: Create tests in `document_processor/tests/` (e.g., `test_my_new_document_extractor.py`) to verify that your extractor correctly parses sample document texts. You might need to mock the S3 text loading if testing locally without live AWS access, or provide sample text directly.
-*   **Validator Tests**: Create tests to ensure your validator correctly identifies valid and invalid data based on the rules you've implemented.
+### 6. Adding a New Process Type
 
-Refer to existing tests in `document_processor/tests/` for examples on how to structure your tests (e.g., `test_certificado_final.py`).
+-   Create a new class that inherits from `Process`.
+-   Implement the abstract methods:
+    -   `add_document(...)` (or rely on a refined `_get_document_instance` as in `FinancialProcess`)
+    -   `set_ocr_extractor(...)`
+    -   `set_document_classifier(...)`
+    -   `add_field_retriever(...)`
+    -   `add_validator(...)` (or a more specific version like `add_validator_for_field` in `FinancialProcess`)
+    -   `run()`: This is the core orchestration logic. You can customize the sequence of operations, error handling, and logging.
+    -   `get_process_summary()`
+-   You might also want to override `_get_document_instance` to control how `Document` objects are created (as shown in `FinancialProcess` with `DOCUMENT_TYPE_MAPPING`).
 
-By following these steps, you can extend the `fantastic-octo-computing-machine` to support new document types and custom processing logic.
+## Running the Demo
+
+The `main.py` script provides a demonstration of how to use the framework:
+
+1.  It sets up some dummy files in a `dummy_docs/` directory.
+2.  It instantiates various components (OCR extractor, classifier, retrievers, validators).
+3.  It creates a `FinancialProcess` and configures it with these components and validation rules.
+4.  It adds the dummy documents to the process.
+5.  It runs the process.
+6.  It prints a detailed summary of the processing, including extracted fields and validation errors for each document.
+7.  It cleans up the dummy files.
+
+To run the demo:
+```bash
+python main.py
+```
+
+This will showcase the flow of operations and how different components interact. You can modify `main.py` to experiment with different configurations or new components you create.
+
+## Future Considerations / Potential Improvements
+- **Configuration Management**: Load process configurations (component choices, rules, mappings) from external files (e.g., YAML, JSON) instead of hardcoding in `main.py`.
+- **Plugin System**: A more dynamic way to discover and register new components.
+- **Asynchronous Processing**: For I/O bound tasks like OCR or external API calls, using `asyncio` could improve performance for batch processing.
+- **Error Handling and Resilience**: More sophisticated error handling, retries, and dead-letter queues for failed documents.
+- **Logging**: Integrate a structured logging library (e.g., `logging` module) throughout the framework.
+- **Testing**: Comprehensive unit and integration tests for all components.
+- **Dependency Injection**: A more formal DI container could manage component dependencies.
+- **Chaining Components**: Allow chaining of classifiers or retrievers (e.g., a primary classifier, then a more specific one if the first classifies as "invoice").
+- **Cross-Document Validation**: The current `Process` is document-centric. For validation rules that span multiple documents within a process, the `Process` class would need to be enhanced to collect all data first, then apply cross-document rules.
+```
